@@ -1,0 +1,9 @@
+target/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+*.log
+config.toml
+/emulator/
+/android-sdk/
