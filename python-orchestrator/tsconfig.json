@@ -12,9 +12,7 @@
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
         "moduleResolution": "node",
-        "typeRoots": [
-            "../node_modules/@types"
-        ]
+        "typeRoots": []
     },
     "include": [
         "src/frida_hooks/**/*.ts"
