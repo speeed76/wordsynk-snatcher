@@ -1,3 +1,4 @@
+/// <reference path="../../../node_modules/@types/frida-gum/index.d.ts" />
 // offer_logger.ts – LIVE, zero-claim, sub-50ms offer detection
 // Attach with: frida -U -f com.wordsynknetwork.moj -l offer_logger.ts --no-pause
 
