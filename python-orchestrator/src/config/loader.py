@@ -3,6 +3,7 @@ import tomlkit
 from pydantic import BaseModel
 from loguru import logger
 
+
 class Filters(BaseModel):
     min_price_gbp: float = 70.0
     languages: list[str] = ["Polish", "Romanian"]
@@ -10,8 +11,12 @@ class Filters(BaseModel):
     blacklist_postcodes: list[str] = []
     dry_run: bool = True
 
+
 class Config:
-    def __init__(self, path: Path = Path("python-orchestrator/config.toml")):
+    def __init__(
+        self,
+        path: Path = Path(__file__).parent.parent.parent / "config.toml",
+    ):
         self.path = path
         self.filters = Filters()
         self._load()
@@ -59,3 +64,13 @@ class Config:
         if any(pc in postcode for pc in self.filters.blacklist_postcodes):
             return False
         return True
+
+    def is_dry_run(self) -> bool:
+        return self.filters.dry_run
+
+    def set_dry_run(self, value: bool) -> None:
+        self.filters.dry_run = value
+        # hot-reload to file
+        with open(self.path, "w") as f:
+            f.write(tomlkit.dumps({"filters": self.filters.dict()}))
+        logger.info(f"dry_run → {value}")

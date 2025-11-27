@@ -39,3 +39,26 @@ class TapEngine:
     def fake_scroll(self) -> None:
         self.device.shell("input swipe 500 1600 500 400 400")
         time.sleep(random.uniform(1.2, 3.8))
+
+    def claim_offer(self, bounds: dict) -> None:
+        """Fire the triple-tap sequence using Frida-provided bounds"""
+        if not bounds:
+            logger.error("No bounds – cannot claim")
+            return
+
+        x = bounds["x"] + bounds["width"] // 2
+        y_card = bounds["y"] + 100  # tap card to force render
+        y_accept = bounds["y"] + bounds["height"] - 180  # hidden Accept button
+
+        # Modal Accept is always fixed at center-bottom on 1080×2400
+        modal_x, modal_y = 540, 920
+
+        logger.info(f"CLAIMING → card({x},{y_card}) → accept({x},{y_accept}) → modal({modal_x},{modal_y})")
+
+        self.tap(x, y_card)
+        time.sleep(random.uniform(0.18, 0.26))
+        self.tap(x, y_accept)
+        time.sleep(random.uniform(0.09, 0.16))
+        self.tap(modal_x, modal_y)
+
+        logger.success("CLAIM SEQUENCE SENT – job should be yours")

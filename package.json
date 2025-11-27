@@ -1,0 +1,18 @@
+{
+  "name": "wordsynk-snatcher",
+  "version": "1.0.0",
+  "description": "Private high-speed interpreter job acceptor – WordSynk MoJ pool",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/frida-gum": "^19.0.1"
+  }
+}
