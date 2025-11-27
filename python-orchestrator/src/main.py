@@ -5,9 +5,11 @@ from datetime import datetime
 from pathlib import Path
 from adb_controller.tap_engine import TapEngine
 from config.loader import Config
+from storage.db import BookingDb
 
 config = Config()
 tap_engine = TapEngine()
+db = BookingDb()
 
 
 def on_message(message, _data):
@@ -23,6 +25,12 @@ def on_message(message, _data):
             logger.success(
                 f"NEW OFFER @ {ts} | £{offer['price_gbp']} | {offer['language_pair']} | {offer['postcode']} | {offer['miles']}mi | id={offer['offer_id']}"
             )
+
+        elif msg["type"] == "NEW_BOOKING":
+            booking = msg["data"]
+            # Persist to SQLite
+            db.upsert_booking(booking)
+            logger.info(f"Scraped booking {booking['id']} - stored in DB")
 
         elif msg["type"] == "CLAIM_READY":
             offer = msg["data"]
@@ -41,6 +49,12 @@ def on_message(message, _data):
                     "postcode": offer["postcode"],
                 }
             )
+
+            # Check for calendar conflicts
+            # (This is where we will eventually query db.check_availability)
+            # if not db.is_time_slot_free(offer_start, offer_end):
+            #     logger.warning("Conflict detected - skipping")
+            #     return
 
             if not should_claim:
                 logger.info(f"Filtered out £{offer['price_gbp']} job")
