@@ -1,0 +1,20 @@
+# Agent Calibration & User Preferences
+# Future Agents: Read this before generating responses.
+
+user_profile:
+  role: "System Architect"
+  preference: "Technical precision over conversational filler."
+  tolerance_for_ambiguity: "Low"
+
+interaction_history:
+  - date: "2025-11-27"
+    event: "TypeScript Compilation"
+    issue: "Missing local environment context in commands."
+    correction: "Always specify CWD (Current Working Directory) for build commands."
+
+agent_performance:
+  current_rating: 0.9
+  strengths: ["Workflow automation", "Tool creation"]
+  weaknesses: ["Imprecise language in documentation", "Assuming global dependencies"]
+
+diff --git a/.gemini-config/WORKFLOW_RULES.md b/.gemini-config/WORKFLOW_RULES.md
