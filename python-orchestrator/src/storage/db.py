@@ -19,7 +19,23 @@ class BookingDb:
             scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
+        query_calendar = """
+        CREATE TABLE IF NOT EXISTS calendar_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            json_blob TEXT,
+            scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+        query_calendar = """
+        CREATE TABLE IF NOT EXISTS calendar_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            json_blob TEXT,
+            captured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
         self.conn.execute(query)
+        self.conn.execute(query_calendar)
+        self.conn.commit()
         self.conn.commit()
 
     def upsert_booking(self, data: dict):
@@ -37,3 +53,15 @@ class BookingDb:
             self.conn.commit()
         except Exception as e:
             logger.error(f"DB Error: {e}")
+
+    def save_snapshot(self, json_str: str):
+        """Persist raw network response for offline analysis"""
+        query = "INSERT INTO calendar_snapshots (json_blob) VALUES (?)"
+        self.conn.execute(query, (json_str,))
+        self.conn.commit()
+
+    def save_snapshot(self, json_str: str):
+        """Persist raw network response for offline analysis"""
+        query = "INSERT INTO calendar_snapshots (json_blob) VALUES (?)"
+        self.conn.execute(query, (json_str,))
+        self.conn.commit()

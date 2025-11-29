@@ -13,10 +13,18 @@ db = BookingDb()
 
 
 def on_message(message, _data):
+    if message["type"] == "log":
+        logger.info(f"FRIDA: {message['payload']}")
+
+
+def on_message(message, _data):
+    if message["type"] == "log":
+        logger.info(f"FRIDA: {message['payload']}")
+        return
+
     if message["type"] == "send":
         payload = message["payload"]
         msg = json.loads(payload)
-
         if msg["type"] == "NEW_OFFER":
             offer = msg["data"]
             ts = datetime.fromtimestamp(offer["detected_at"] / 1000).strftime(
@@ -65,7 +73,16 @@ def on_message(message, _data):
             )
             tap_engine.claim_offer(offer["bounds"])
 
+        elif msg["type"] == "HTTP_RESPONSE":
+            # Raw data capture for analysis
+            payload = msg.get("payload", "")
+            # Basic filter to ensure we only save relevant booking data
+            if "booking" in payload.lower():
+                db.save_snapshot(payload)
+                logger.info(f"Captured generic booking data ({len(payload)} bytes)")
 
+        else:
+            logger.debug(f"Unhandled message type: {msg['type']}")
 def main():
     logger.remove()
     logger.add(lambda msg: print(msg, flush=True), level="INFO", colorize=True)
@@ -93,7 +110,7 @@ def main():
         logger.error(f"Frida attach failed: {e}")
         return
 
-    script_path = Path(__file__).parent / "frida_hooks" / "offer_logger.ts"
+    script_path = Path(__file__).parent / "frida_hooks" / "offer_logger.js"
     with open(script_path, "r", encoding="utf-8") as f:
         script = session.create_script(f.read())
     script.on("message", on_message)

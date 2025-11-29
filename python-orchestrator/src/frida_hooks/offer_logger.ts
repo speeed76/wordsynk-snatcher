@@ -124,5 +124,76 @@ Java.perform(() => {
         console.log("[!] Could not find BookingListAdapter. Check class name.");
     }
 
-    console.log("[+] OfferListAdapter hook installed");
+    console.log("[+] Hooks initialized. Waiting for network traffic...");
+
+    // STRATEGY v3: Network Layer Interception (Derived from Probe v10)
+    try {
+        const ResponseBody = Java.use("okhttp3.ResponseBody");
+        ResponseBody.string.implementation = function () {
+            const responseBodyString = this.string();
+            try {
+                // Filter: Only look for booking-like JSON responses
+                if (responseBodyString.includes("booking") || responseBodyString.includes("jobId")) {
+                    send(JSON.stringify({
+                        type: "HTTP_SNIFF",
+                        payload: responseBodyString
+                    }));
+                    console.log("[Network] Captured potential booking data");
+                }
+            } catch (e) {
+                // ignore decoding errors
+            }
+            return responseBodyString;
+        };
+        console.log("[+] OkHttp3 Interceptor active");
+    } catch (e) {
+        console.log("[!] OkHttp3 hook error (Obfuscation?): " + e);
+    }
+
+    // STRATEGY v3: UI Adaptation Layer Hook (RecyclerView.setAdapter)
+    // Captures adapter names for reconnaissance
+    try {
+        const RecyclerView = Java.use("androidx.recyclerview.widget.RecyclerView");
+        RecyclerView.setAdapter.implementation = function(adapter: any) {
+            if (adapter) {
+                const name = adapter.class.getName();
+                send(JSON.stringify({
+                    type: "ADAPTER_FOUND",
+                    data: { name: name }
+                }));
+            }
+            // Execute the original method
+            this.setAdapter(adapter);
+        };
+        console.log("[+] RecyclerView discovery hook active");
+    } catch (e) {
+        console.log("[!] RecyclerView hook error: " + e);
+    }
+
+    // --- Network Interception (OkHttp3) ---
+    // Captures full server responses (e.g. Booking Calendar syncs)
+    try {
+        const ResponseBody = Java.use("okhttp3.ResponseBody");
+        ResponseBody.string.implementation = function () {
+            const responseBodyString = this.string(); // Call original method
+            try {
+                // Only send if it looks like a JSON object to reduce noise
+                if (responseBodyString.startsWith("{") || responseBodyString.startsWith("[")) {
+                    // Heuristic: Check for common booking keywords
+                    if (responseBodyString.includes("booking") || responseBodyString.includes("job") || responseBodyString.includes("start")) {
+                        send(JSON.stringify({
+                            type: "HTTP_SNIFF",
+                            payload: responseBodyString
+                        }));
+                    }
+                }
+            } catch (e) {
+                // ignore decoding errors
+            }
+            return responseBodyString; // Return original result
+        };
+        console.log("[+] OkHttp3 Interceptor active");
+    } catch (e) {
+        console.log("[!] OkHttp3 hook error: " + e);
+    }
 });
