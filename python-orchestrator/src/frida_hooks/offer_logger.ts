@@ -124,7 +124,11 @@ Java.perform(() => {
         console.log("[!] Could not find BookingListAdapter. Check class name.");
     }
 
-    console.log("[+] Hooks initialized. Waiting for network traffic...");
+    // PING: Prove execution immediately
+    send(JSON.stringify({
+        type: "LOG",
+        payload: "[+] Hooks initialized. Java.perform executed successfully."
+    }));
 
     // STRATEGY v3: Network Layer Interception (Derived from Probe v10)
     try {

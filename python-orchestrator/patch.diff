@@ -1,35 +1,17 @@
-diff --git a/.gemini-config/APP_INTERNALS.md b/.gemini-config/APP_INTERNALS.md
-new file mode 100644
-index 0000000..e123456
---- /dev/null
-+++ b/.gemini-config/APP_INTERNALS.md
-@@ -0,0 +1,29 @@
-+# WordSynk App Internals & Instrumentation Guide
-+
-+## Network Architecture
-+The application relies on standard Java HTTP libraries rather than native code for networking, making it susceptible to high-level Java instrumentation.
-+
-+### Core Libraries
-+* **Library:** `okhttp3`
-+* **Usage:** REST API calls and WebSocket connections.
-+
-+### Validated Hook Targets
-+These classes have been confirmed to exist and are not obfuscated in the target version (Probe v10).
-+
-+#### 1. HTTP Response Capture
-+* **Target:** `okhttp3.ResponseBody`
-+* **Method:** `string()`
-+* **Value:** Returns the raw JSON response body as a String.
-+* **Strategy:** Hook this to capture `{"bookings": [...]}` payloads before the UI processes them.
-+
-+#### 2. WebSocket Interception
-+* **Target:** `okhttp3.OkHttpClient`
-+* **Method:** `newWebSocket(Request, WebSocketListener)`
-+* **Value:** Exposes the WSS URL and the Listener object.
-+* **Strategy:** Hook this to clone the session or inject messages into the live socket stream.
-+
-+## Data Models
-+* **Bookings:** Transmitted as JSON objects over HTTP/1.1.
-+* **Offers:** Pushed via WebSocket (instant) or polled via HTTP (fallback).
-+
-+**Recommendation:** Prefer `okhttp3` hooks over UI/Adapter hooks for stability across app updates.
+diff --git a/python-orchestrator/src/frida_hooks/offer_logger.ts b/python-orchestrator/src/frida_hooks/offer_logger.ts
+index 884a2b1..95cc482 100644
+--- a/python-orchestrator/src/frida_hooks/offer_logger.ts
++++ b/python-orchestrator/src/frida_hooks/offer_logger.ts
+@@ -87,7 +87,11 @@ Java.perform(() => {
+         console.log("[!] Could not find BookingListAdapter. Check class name.");
+     }
+ 
+-    console.log("[+] Hooks initialized. Waiting for network traffic...");
++    // PING: Prove execution immediately
++    send(JSON.stringify({
++        type: "LOG",
++        payload: "[+] Hooks initialized. Java.perform executed successfully."
++    }));
+ 
+     // STRATEGY v3: Network Layer Interception (Derived from Probe v10)
+     try {

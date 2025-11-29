@@ -18,9 +18,8 @@ def on_message(message, _data):
 
 
 def on_message(message, _data):
-    if message["type"] == "log":
-        logger.info(f"FRIDA: {message['payload']}")
-        return
+    # DEBUG: Dump everything to see if we are missing events
+    logger.debug(f"RAW MSG: {message}")
 
     if message["type"] == "send":
         payload = message["payload"]
