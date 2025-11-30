@@ -1,17 +1,25 @@
-diff --git a/python-orchestrator/src/frida_hooks/offer_logger.ts b/python-orchestrator/src/frida_hooks/offer_logger.ts
-index 884a2b1..95cc482 100644
---- a/python-orchestrator/src/frida_hooks/offer_logger.ts
-+++ b/python-orchestrator/src/frida_hooks/offer_logger.ts
-@@ -87,7 +87,11 @@ Java.perform(() => {
-         console.log("[!] Could not find BookingListAdapter. Check class name.");
-     }
- 
--    console.log("[+] Hooks initialized. Waiting for network traffic...");
-+    // PING: Prove execution immediately
-+    send(JSON.stringify({
-+        type: "LOG",
-+        payload: "[+] Hooks initialized. Java.perform executed successfully."
-+    }));
- 
-     // STRATEGY v3: Network Layer Interception (Derived from Probe v10)
-     try {
+diff --git a/.gemini-config/POST_MORTEM.md b/.gemini-config/POST_MORTEM.md
+new file mode 100644
+index 0000000..e123456
+--- /dev/null
++++ b/.gemini-config/POST_MORTEM.md
+@@ -0,0 +1,30 @@
++# Development Path Post-Mortem: "The Spawn Trap"
++
++## 1. Failed Approach: Process Spawning
++* **Strategy:** Using `frida -f com.wordsynknetwork.moj` (Spawn Mode) to hook SSL classes early.
++* **Outcome:** Application crash / Immediate termination.
++* **Root Cause:** Android 15 (API 35) + WordSynk v3+ implements runtime integrity checks during `Application.onCreate()`. The presence of a debugger/injector during startup triggers a self-defense termination.
++* **Correction:** Switch to **Attach Mode**. Launch app manually (or via `monkey`), wait for initialization, then attach.
++
++## 2. Failed Approach: Universal SSL Pinning Bypass
++* **Strategy:** Hooking `com.android.org.conscrypt.TrustManagerImpl` on API 35.
++* **Outcome:** Segfault (Native Crash).
++* **Root Cause:** Internal Android networking classes have changed significantly in Android 14/15. Generic bypass scripts are dangerous.
++* **Correction:** **Infrastructure-level Bypass.** Inject the MITM CA certificate into the System Trust Store (`/system/etc/security/cacerts`) using Root access.
++
++## 3. Failed Approach: x86 Emulation (The "Houdini" Glitch)
++* **Strategy:** Running ARM APKs on standard x86 Android Emulators.
++* **Outcome:** `ReferenceError: 'Java' is not defined`.
++* **Root Cause:** The emulator uses `libhoudini` binary translation. Frida attaches to the x86 wrapper process, not the internal ARM Dalvik VM. The Java Runtime is invisible to the hook.
++* **Correction:** **Native ARM64.** Use Apple Silicon (M1/M2/M3) host with `arm64-v8a` AVD images only.

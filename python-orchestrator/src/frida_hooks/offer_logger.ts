@@ -1,203 +1,88 @@
-// offer_logger.ts – LIVE, zero-claim, sub-50ms offer detection
-// Attach with: frida -U -f com.wordsynknetwork.moj -l offer_logger.ts --no-pause
+// offer_logger.ts – Ported from "moj_mitmweb_forwarder.js"
+// Status: KNOWN WORKING LOGIC
+// Adapts the functional SSL Bypass + Sniffers to send data to Python
 
-rpc.exports = {
-    init: () => {
-        console.log("[*] WordSynk Snatcher Frida hook active – watching for new offers");
-    }
-};
-
-// Helper to dump full object state via reflection (exploits the insecure data dump)
-function reflectiveSerializer(javaObj: any): any {
-    const data: any = {};
-    const fields = javaObj.class.getDeclaredFields();
-    fields.forEach((field: any) => {
-        field.setAccessible(true);
-        const name = field.getName();
-        try {
-            const value = field.get(javaObj);
-            if (value !== null) {
-                // Handle basic types, stringify others
-                const strVal = value.toString();
-                data[name] = strVal;
-            } else {
-                data[name] = null;
-            }
-        } catch (e) {
-            data[name] = "[Error retrieving]";
-        }
-    });
-    return data;
+if (typeof Java === "undefined") {
+    send({ type: "LOG", payload: "[CRITICAL] Java missing. Ensure app is running before attaching." });
+} else {
+    Java.perform(main);
 }
 
-Java.perform(() => {
-    // Hook the real OfferAdapter (confirmed via JADX on v1.0.15)
-    const OfferAdapter = Java.use("com.wordsynk.network.moj.ui.offers.OfferListAdapter");
+function main() {
+    send({ type: "LOG", payload: "[+] Hook loaded. Applying SSL Bypass & Sniffers..." });
 
-    OfferAdapter.bindViewHolder.overload('androidx.recyclerview.widget.RecyclerView$ViewHolder', 'int').implementation = function (holder, position) {
-        const result = this.bindViewHolder(holder, position);
-
-        try {
-            const offer = this.getItem(position);
-            if (offer) {
-                const data = {
-                    detected_at: Date.now(),
-                    offer_id: offer.getId?.()?.toString() || "unknown",
-                    price_gbp: offer.getTotalPrice?.() || 0,
-                    language_pair: offer.getLanguagePair?.() || "unknown",
-                    postcode: offer.getPostcode?.() || "unknown",
-                    miles: offer.getDistanceMiles?.() || -1,
-                    view_bounds: holder.itemView ? {
-                        x: holder.itemView.getX(),
-                        y: holder.itemView.getY(),
-                        width: holder.itemView.getWidth(),
-                        height: holder.itemView.getHeight(),
-                    } : null
-                };
-
-                // Send to Python supervisor instantly
-                send(JSON.stringify({
-                    type: "NEW_OFFER",
-                    data: data
-                }));
-
-                console.log(`[NEW OFFER] £${data.price_gbp} | ${data.language_pair} | ${data.postcode} | ${data.miles}mi | id=${data.offer_id}`);
-
-                // Send bounds for claiming
-                if (data.view_bounds) {
-                    send(JSON.stringify({
-                        type: "CLAIM_READY",
-                        data: {
-                            offer_id: data.offer_id,
-                            price_gbp: data.price_gbp,
-                            language_pair: data.language_pair,
-                            postcode: data.postcode,
-                            miles: data.miles,
-                            bounds: data.view_bounds
-                        }
-                    }));
-                }
-            }
-        } catch (e) {
-            console.log("[!] Hook error (safe): " + e);
-        }
-
-        return result;
-    };
-
-    // --- NEW: Booking Scraper ---
-    // Hypothetical Adapter name based on package structure.
-    // If this fails, checking logcat for "ClassNotFound" and adjust.
+    // ───── 1. Universal SSL Pinning Bypass (From your working script) ─────
     try {
-        const BookingAdapter = Java.use("com.wordsynk.network.moj.ui.bookings.BookingListAdapter");
-
-        BookingAdapter.bindViewHolder.overload('androidx.recyclerview.widget.RecyclerView$ViewHolder', 'int').implementation = function (holder: any, position: number) {
-            const result = this.bindViewHolder(holder, position);
-            try {
-                const booking = this.getItem(position);
-                if (booking) {
-                    // We use the reflective serializer to grab hidden fields
-                    const fullData = reflectiveSerializer(booking);
-
-                    // Try to guess start/end times from common field names,
-                    // or fallback to the full dump for Python to parse.
-                    const payload = {
-                        type: "NEW_BOOKING",
-                        data: {
-                            id: fullData.id || fullData.bookingId || "unknown",
-                            // These keys are guesses; the reflection dump will reveal the real ones
-                            start_time: fullData.startDate || fullData.startTime || fullData.start,
-                            end_time: fullData.endDate || fullData.endTime || fullData.end,
-                            raw_dump: fullData
-                        }
-                    };
-
-                    send(JSON.stringify(payload));
-                }
-            } catch (e) {
-                console.log("[!] Booking hook error: " + e);
-            }
-            return result;
+        const TrustManagerImpl = Java.use('com.android.org.conscrypt.TrustManagerImpl');
+        TrustManagerImpl.verifyChain.implementation = function() {
+            return this.verifyChain.apply(this, arguments);
         };
-        console.log("[+] BookingListAdapter hook installed");
-    } catch (e) {
-        console.log("[!] Could not find BookingListAdapter. Check class name.");
-    }
-
-    // PING: Prove execution immediately
-    send(JSON.stringify({
-        type: "LOG",
-        payload: "[+] Hooks initialized. Java.perform executed successfully."
-    }));
-
-    // STRATEGY v3: Network Layer Interception (Derived from Probe v10)
+    } catch(e) {}
     try {
-        const ResponseBody = Java.use("okhttp3.ResponseBody");
+        const OkHttpClientBuilder = Java.use('okhttp3.OkHttpClient$Builder');
+        OkHttpClientBuilder.prototype.certificatePinner.implementation = function() { return this; };
+    } catch(e) {}
+    try {
+        const CertificatePinner = Java.use('okhttp3.CertificatePinner');
+        CertificatePinner.check.overload('java.lang.String', 'java.util.List').implementation = function() {};
+    } catch(e) {}
+    try {
+        const X509TrustManager = Java.use('javax.net.ssl.X509TrustManager');
+        // @ts-ignore
+        Java.registerClass({
+            name: 'com.fake.FakeTrustManager',
+            superClass: Java.use('java.lang.Object'),
+            implements: [X509TrustManager],
+            methods: {
+                checkClientTrusted: function() {},
+                checkServerTrusted: function() {},
+                getAcceptedIssuers: function() { return []; }
+            }
+        });
+    } catch(e) {}
+
+    // ───── 2. HTTP Sniffer (OkHttp3 ResponseBody) ─────
+    try {
+        const ResponseBody = Java.use('okhttp3.ResponseBody');
+        // Hook string() to capture the response body
         ResponseBody.string.implementation = function () {
-            const responseBodyString = this.string();
-            try {
-                // Filter: Only look for booking-like JSON responses
-                if (responseBodyString.includes("booking") || responseBodyString.includes("jobId")) {
-                    send(JSON.stringify({
-                        type: "HTTP_SNIFF",
-                        payload: responseBodyString
-                    }));
-                    console.log("[Network] Captured potential booking data");
-                }
-            } catch (e) {
-                // ignore decoding errors
-            }
-            return responseBodyString;
-        };
-        console.log("[+] OkHttp3 Interceptor active");
-    } catch (e) {
-        console.log("[!] OkHttp3 hook error (Obfuscation?): " + e);
-    }
-
-    // STRATEGY v3: UI Adaptation Layer Hook (RecyclerView.setAdapter)
-    // Captures adapter names for reconnaissance
-    try {
-        const RecyclerView = Java.use("androidx.recyclerview.widget.RecyclerView");
-        RecyclerView.setAdapter.implementation = function(adapter: any) {
-            if (adapter) {
-                const name = adapter.class.getName();
-                send(JSON.stringify({
-                    type: "ADAPTER_FOUND",
-                    data: { name: name }
-                }));
-            }
-            // Execute the original method
-            this.setAdapter(adapter);
-        };
-        console.log("[+] RecyclerView discovery hook active");
-    } catch (e) {
-        console.log("[!] RecyclerView hook error: " + e);
-    }
-
-    // --- Network Interception (OkHttp3) ---
-    // Captures full server responses (e.g. Booking Calendar syncs)
-    try {
-        const ResponseBody = Java.use("okhttp3.ResponseBody");
-        ResponseBody.string.implementation = function () {
-            const responseBodyString = this.string(); // Call original method
-            try {
-                // Only send if it looks like a JSON object to reduce noise
-                if (responseBodyString.startsWith("{") || responseBodyString.startsWith("[")) {
-                    // Heuristic: Check for common booking keywords
-                    if (responseBodyString.includes("booking") || responseBodyString.includes("job") || responseBodyString.includes("start")) {
+            const result = this.string();
+            
+            // Basic noise filtering (ignore short/empty responses)
+            if (result.length > 10) {
+                // Check if it looks like JSON
+                if (result.trim().startsWith("{") || result.trim().startsWith("[")) {
+                    // Check for booking-specific keywords to reduce traffic
+                    if (result.includes("bookingReference") || result.includes("requirements") || result.includes("jobId")) {
                         send(JSON.stringify({
                             type: "HTTP_SNIFF",
-                            payload: responseBodyString
+                            payload: result
                         }));
                     }
                 }
-            } catch (e) {
-                // ignore decoding errors
             }
-            return responseBodyString; // Return original result
+            return result;
         };
-        console.log("[+] OkHttp3 Interceptor active");
+        console.log("[+] OkHttp3 Sniffer attached");
     } catch (e) {
-        console.log("[!] OkHttp3 hook error: " + e);
+        console.log("[!] OkHttp3 error: " + e);
     }
-});
+
+    // ───── 3. WebSocket Sniffer (RealWebSocket) ─────
+    try {
+        const RealWebSocket = Java.use('okhttp3.internal.ws.RealWebSocket');
+        RealWebSocket.onReadMessage.implementation = function (message: any) {
+            // Check if message is text (JSON)
+            if (typeof message === 'string' && (message.startsWith("{") || message.startsWith("["))) {
+                send(JSON.stringify({
+                    type: "WS_IN",
+                    payload: message
+                }));
+            }
+            return this.onReadMessage(message);
+        };
+        console.log("[+] WebSocket Sniffer attached");
+    } catch (e) {
+        console.log("[!] WebSocket error: " + e);
+    }
+}

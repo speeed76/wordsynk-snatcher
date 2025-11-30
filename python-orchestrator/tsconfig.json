@@ -13,7 +13,12 @@
         "forceConsistentCasingInFileNames": true,
         "ignoreDeprecations": "6.0",
         "moduleResolution": "node",
-        "typeRoots": []
+        "types": [
+            "frida-gum"
+        ],
+        "typeRoots": [
+            "./node_modules/@types"
+        ]
     },
     "include": [
         "src/frida_hooks/**/*.ts"
