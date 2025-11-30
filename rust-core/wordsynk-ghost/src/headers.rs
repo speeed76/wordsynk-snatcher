@@ -1,4 +1,4 @@
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, ACCEPT, USER_AGENT, ACCEPT_ENCODING};
+use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, ACCEPT_ENCODING, AUTHORIZATION, USER_AGENT};
 
 pub fn generate_mobile_headers(token: &str) -> HeaderMap {
     let mut headers = HeaderMap::new();
@@ -13,3 +13,6 @@ pub fn generate_mobile_headers(token: &str) -> HeaderMap {
     // 3. Accept Headers
     headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
     headers.insert(ACCEPT_ENCODING, HeaderValue::from_static("gzip"));
+
+    headers
+}

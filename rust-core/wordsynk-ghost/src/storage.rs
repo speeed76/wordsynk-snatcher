@@ -1,7 +1,10 @@
 use anyhow::Result;
-use mongodb::{options::{ClientOptions, UpdateOptions}, Client, Database};
-use serde_json::Value;
 use bson::{doc, to_document};
+use mongodb::{
+    options::{ClientOptions, UpdateOptions},
+    Client, Database,
+};
+use serde_json::Value;
 
 pub struct Storage {
     db: Database,
@@ -17,14 +20,19 @@ impl Storage {
 
     /// Syncs a list of JSON items to a MongoDB collection.
     /// Performs an upsert based on the `unique_key` field (e.g., "id").
-    pub async fn sync_collection(&self, collection_name: &str, unique_key: &str, items: Vec<Value>) -> Result<usize> {
+    pub async fn sync_collection(
+        &self,
+        collection_name: &str,
+        unique_key: &str,
+        items: Vec<Value>,
+    ) -> Result<usize> {
         let collection = self.db.collection::<bson::Document>(collection_name);
         let mut updated_count = 0;
 
         for item in items {
             // 1. Convert JSON to BSON
             let mut bson_doc = to_document(&item)?;
-            
+
             // Add a local timestamp for our own tracking
             bson_doc.insert("_synced_at", bson::DateTime::now());
 
@@ -40,3 +48,5 @@ impl Storage {
             }
         }
         Ok(updated_count)
+    }
+}

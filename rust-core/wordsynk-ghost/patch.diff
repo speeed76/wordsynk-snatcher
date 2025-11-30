@@ -1,0 +1,17 @@
+diff --git a/.gemini-config/GIT_PATCH_RULES.yaml b/.gemini-config/GIT_PATCH_RULES.yaml
+index e69de29..84f1a2b 100644
+--- a/.gemini-config/GIT_PATCH_RULES.yaml
++++ b/.gemini-config/GIT_PATCH_RULES.yaml
+@@ -1,0 +1,12 @@
++patch_policy:
++  mode: "incremental"
++  filename: "patch.diff"
++  rules:
++    - "ALWAYS generate a single file named 'patch.diff'."
++    - "ALWAYS overwrite 'patch.diff' with only the specific changes for the current task."
++    - "NEVER include files that have not changed."
++    - "NEVER re-patch a file that is already correct (unless fixing a regression)."
++    - "Use unified diff format with enough context for 'git apply' to function."
++  workflow:
++    step_1: "User: Save content to patch.diff"
++    step_2: "User: git apply patch.diff"
